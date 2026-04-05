@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  odoo:
+    image: odoo:19.0
+    ports:
+      - "8069:8069"
+    volumes:
+      - ./saas_external_domain_resolver:/mnt/extra-addons/saas_external_domain_resolver
+      - odoo_data:/var/lib/odoo
+    environment:
+      - HOST=postgres
+      - USER=odoo
+      - PASSWORD=odoo
+      - SAAS_MAPPING_DB_HOST=postgres
+      - SAAS_MAPPING_DB_PORT=5432
+      - SAAS_MAPPING_DB_NAME=app
+      - SAAS_MAPPING_DB_USER=app
+      - SAAS_MAPPING_DB_PASSWORD=app_password
+    depends_on:
+      - postgres
+    labels:
+      - "traefik.http.services.odoo.loadbalancer.server.port=8069"
+      - "traefik.http.services.odoo.loadbalancer.passHostHeader=true"
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=app
+      - POSTGRES_USER=app
+      - POSTGRES_PASSWORD=app_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+
+volumes:
+  odoo_data:
+  postgres_data:
