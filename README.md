@@ -285,6 +285,122 @@ from odoo.addons.saas_external_domain_resolver.models.saas_domain_resolver impor
 clear_saas_domain_cache()
 ```
 
+## Testing
+
+The module includes comprehensive unit and integration tests to ensure reliability and prevent regressions.
+
+### Test Structure
+
+```
+saas_external_domain_resolver/
+├── tests/
+│   ├── __init__.py                    # Test package init
+│   ├── test_domain_resolver.py        # Main unit tests
+│   ├── test_database_mapping.py       # Database integration tests
+│   └── test_cache_functionality.py    # Cache-specific tests
+├── requirements-test.txt              # Test dependencies
+└── test_config.py                     # Test configuration utilities
+```
+
+### Running Tests
+
+#### Prerequisites
+
+1. Install test dependencies:
+```bash
+cd saas_external_domain_resolver
+pip install -r requirements-test.txt
+```
+
+2. Start the test database:
+```bash
+cd ..
+docker-compose --profile testing up -d test-postgres
+```
+
+#### Run Unit Tests
+
+Unit tests mock external dependencies and test individual components:
+
+```bash
+# Run all unit tests
+python -m pytest saas_external_domain_resolver/tests/test_domain_resolver.py -v
+
+# Run cache tests
+python -m pytest saas_external_domain_resolver/tests/test_cache_functionality.py -v
+```
+
+#### Run Integration Tests
+
+Integration tests require a running test database:
+
+```bash
+# Run database integration tests
+python -m pytest saas_external_domain_resolver/tests/test_database_mapping.py -v
+```
+
+#### Run All Tests
+
+```bash
+# Run all tests
+python -m pytest saas_external_domain_resolver/tests/ -v
+
+# Run tests with coverage
+python -m pytest saas_external_domain_resolver/tests/ --cov=saas_external_domain_resolver
+```
+
+### Test Categories
+
+#### Unit Tests (`test_domain_resolver.py`)
+
+- **Host Extraction**: Tests `_get_clean_host()` with various host formats
+- **Database Mapping**: Tests `_get_database_from_mapping()` with mocked database calls
+- **Request Dispatch**: Tests the main `_dispatch()` method with different scenarios
+- **Error Handling**: Tests behavior with missing environment variables and connection failures
+
+#### Integration Tests (`test_database_mapping.py`)
+
+- **Database Connections**: Tests actual PostgreSQL connections and queries
+- **Data Mapping**: Tests domain-to-database resolution with real data
+- **Connection Failures**: Tests timeout and authentication error handling
+
+#### Cache Tests (`test_cache_functionality.py`)
+
+- **Cache Hits/Misses**: Tests ORM cache behavior for repeated domain lookups
+- **Cache Invalidation**: Tests `clear_saas_domain_cache()` functionality
+- **Cache Isolation**: Tests that different domains use separate cache entries
+
+### Test Data
+
+The test database is initialized with sample data:
+
+- `client1.test.com` → `client1_db` (active)
+- `client2.test.com` → `client2_db` (active)
+- `inactive.test.com` → `inactive_db` (inactive)
+
+### Continuous Integration
+
+For CI/CD pipelines, use:
+
+```yaml
+# GitHub Actions example
+- name: Run tests
+  run: |
+    docker-compose --profile testing up -d test-postgres
+    sleep 10  # Wait for database to be ready
+    pip install -r saas_external_domain_resolver/requirements-test.txt
+    python -m pytest saas_external_domain_resolver/tests/ --cov=saas_external_domain_resolver
+```
+
+### Writing New Tests
+
+When adding new functionality:
+
+1. Add unit tests to `test_domain_resolver.py` for new methods
+2. Add integration tests to `test_database_mapping.py` for database operations
+3. Add cache tests to `test_cache_functionality.py` for caching behavior
+4. Update test data in `init-test-db.sql` if needed
+
 ## Performance
 
 - Domain lookups are cached for 300 seconds (5 minutes)

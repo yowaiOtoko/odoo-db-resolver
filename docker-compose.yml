@@ -35,6 +35,21 @@ services:
     ports:
       - "5432:5432"
 
+  test-postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=test_app
+      - POSTGRES_USER=test_app
+      - POSTGRES_PASSWORD=test_password
+    volumes:
+      - test_postgres_data:/var/lib/postgresql/data
+      - ./init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql
+    ports:
+      - "5433:5432"
+    profiles:
+      - testing
+
 volumes:
   odoo_data:
   postgres_data:
+  test_postgres_data:
