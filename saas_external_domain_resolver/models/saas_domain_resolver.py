@@ -5,26 +5,17 @@ import logging
 import time
 from odoo import models, tools, http
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger('odoo.addons.saas_external_domain_resolver')
 
 # Test module load
-try:
-    with open('/tmp/module_load.txt', 'w') as f:
-        f.write(f"Module saas_external_domain_resolver loaded at {time.time()}\n")
-    _logger.info("Module load test file written")
-except Exception as e:
-    _logger.error("Module load test failed: %s", e)
+_logger.info("Module saas_external_domain_resolver loaded at %s", time.time())
 
 class IrHttp(models.AbstractModel):
     _inherit = 'ir.http'
 
     def _dispatch(self):
         # Test: Write to file to confirm this method is called
-        try:
-            with open('/tmp/resolver_test.txt', 'a') as f:
-                f.write(f"Resolver _dispatch hit at {time.time()}\n")
-        except Exception as e:
-            pass  # Silent fail for test
+        _logger.info("Resolver _dispatch hit at %s", time.time())
 
         start_time = time.perf_counter()
         host = self._get_clean_host()
@@ -67,8 +58,4 @@ def clear_saas_domain_cache():
         _logger.error("Failed to clear cache: %s", e)
 
 def post_init_hook(cr, registry):
-    try:
-        with open('/tmp/resolver_init.txt', 'w') as f:
-            f.write(f"Post init hook run at {time.time()}\n")
-    except Exception as e:
-        pass  # Silent for test
+    _logger.info("Post init hook run at %s", time.time())
