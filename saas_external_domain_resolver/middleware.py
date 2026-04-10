@@ -6,6 +6,34 @@ import os
 _logger = logging.getLogger('odoo.addons.saas_external_domain_resolver.middleware')
 
 
+def _init_sentry():
+    dsn = os.environ.get('ODOO_ADDON_SENTRY_DSN', '')
+    if not dsn:
+        return
+    try:
+        import sentry_sdk
+        sentry_sdk.init(
+            dsn=dsn,
+            send_default_pii=True,
+            enable_logs=True,
+            environment=os.environ.get('ODOO_ADDON_RUNNING_ENV', 'production'),
+            release=os.environ.get('SENTRY_RELEASE', None),
+        )
+        _logger.info("SaaS resolver: Sentry initialized")
+    except ImportError:
+        _logger.warning("SaaS resolver: sentry-sdk not installed, skipping Sentry init")
+    except Exception as e:
+        _logger.warning("SaaS resolver: Sentry init failed: %s", e)
+
+
+def _capture_exception(exc):
+    try:
+        import sentry_sdk
+        sentry_sdk.capture_exception(exc)
+    except Exception:
+        pass
+
+
 def _get_database_from_mapping(host):
     env = os.environ
     password = env.get('SAAS_MAPPING_DB_PASSWORD', '')
@@ -32,12 +60,14 @@ def _get_database_from_mapping(host):
                 return result['odoo_database'] if result else None
     except Exception as e:
         _logger.error("SaaS resolver DB error for %s: %s", host, e)
+        _capture_exception(e)
         return None
 
 
 def post_load():
     """Patch Odoo's db_filter to resolve tenant DB from external mapping.
     This avoids any session/CSRF manipulation — Odoo selects the DB naturally."""
+    _init_sentry()
     import odoo.http as http_module
 
     original_db_filter = http_module.db_filter
