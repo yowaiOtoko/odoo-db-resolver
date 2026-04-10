@@ -6,5 +6,6 @@
     'website': 'https://invo-facturation.fr',
     'depends': ['base'],
     'installable': True,
-    'auto_install': False,
+    'auto_install': True,
+    'post_init_hook': 'post_init_hook',
 }

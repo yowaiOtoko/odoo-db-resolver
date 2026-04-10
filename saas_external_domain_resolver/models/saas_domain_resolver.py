@@ -7,10 +7,25 @@ from odoo import models, tools, http
 
 _logger = logging.getLogger(__name__)
 
+# Test module load
+try:
+    with open('/tmp/module_load.txt', 'w') as f:
+        f.write(f"Module saas_external_domain_resolver loaded at {time.time()}\n")
+    _logger.info("Module load test file written")
+except Exception as e:
+    _logger.error("Module load test failed: %s", e)
+
 class IrHttp(models.AbstractModel):
     _inherit = 'ir.http'
 
     def _dispatch(self):
+        # Test: Write to file to confirm this method is called
+        try:
+            with open('/tmp/resolver_test.txt', 'a') as f:
+                f.write(f"Resolver _dispatch hit at {time.time()}\n")
+        except Exception as e:
+            pass  # Silent fail for test
+
         start_time = time.perf_counter()
         host = self._get_clean_host()
         if host:
@@ -19,7 +34,9 @@ class IrHttp(models.AbstractModel):
             if dbname:
                 _logger.debug("Domain resolved: %s → '%s' (%.2fms)", host, dbname, duration)
                 http.request.session.db = dbname
-                http.request.env.cr.dbname = dbname
+                # Bypass selector and redirect to login if DB resolved
+                if http.request.httprequest.path == '/web/database/selector':
+                    return http.request.redirect('/web/login')
             else:
                 _logger.warning("No mapping found for domain: %s (%.2fms)", host, duration)
         return super()._dispatch()
@@ -34,32 +51,12 @@ class IrHttp(models.AbstractModel):
 
     @tools.ormcache('host', cache='saas_domain_mapping', timeout=300)
     def _get_database_from_mapping(self, host):
-        """Cached lookup from external mapping table"""
-        env = os.environ
-        config = {
-            'host': env.get('SAAS_MAPPING_DB_HOST', 'postgres'),
-            'port': int(env.get('SAAS_MAPPING_DB_PORT', '5432')),
-            'dbname': env.get('SAAS_MAPPING_DB_NAME', 'app'),
-            'user': env.get('SAAS_MAPPING_DB_USER', 'app'),
-            'password': env.get('SAAS_MAPPING_DB_PASSWORD', ''),
-        }
-        if not config['password']:
-            _logger.error("SAAS_MAPPING_DB_PASSWORD environment variable is not set!")
-            return None
-        try:
-            with psycopg2.connect(**config, connect_timeout=2, application_name='odoo-saas-resolver') as conn:
-                with conn.cursor(cursor_factory=DictCursor) as cr:
-                    cr.execute("""
-                        SELECT odoo_database
-                        FROM tenant_domain_mapping
-                        WHERE domain = %s AND is_active = true
-                        LIMIT 1
-                    """, (host,))
-                    result = cr.fetchone()
-                    return result['odoo_database'] if result else None
-        except Exception as e:
-            _logger.error("Domain mapping error for %s: %s", host, e)
-            return None
+        """TEMP HARDCODE FOR DEBUG - return fixed DB for localhost"""
+        if host == 'localhost':
+            _logger.info("TEMP HARDCODE: Returning 'odoo_devcorp_solutions_sarl_209' for %s", host)
+            return 'odoo_devcorp_solutions_sarl_209'
+        _logger.info("TEMP: No hardcoded mapping for %s, returning None", host)
+        return None
 
 def clear_saas_domain_cache():
     """Call this from your provisioning system after updating mappings"""
@@ -68,3 +65,10 @@ def clear_saas_domain_cache():
         _logger.info("SaaS domain mapping cache cleared")
     except Exception as e:
         _logger.error("Failed to clear cache: %s", e)
+
+def post_init_hook(cr, registry):
+    try:
+        with open('/tmp/resolver_init.txt', 'w') as f:
+            f.write(f"Post init hook run at {time.time()}\n")
+    except Exception as e:
+        pass  # Silent for test
